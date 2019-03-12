@@ -16,15 +16,31 @@ package spanstore
 
 import (
 	"time"
+
+	"github.com/jaegertracing/jaeger/model"
 )
 
 // returns index name with date
 func indexWithDate(indexPrefix string, date time.Time) string {
-	spanDate := date.UTC().Format("2006-01-02")
-	return indexPrefix + spanDate
+	spanDate := date.UTC().Format("060102")
+	return indexPrefix + spanDate + "*"
 }
 
 // returns archive index name
 func archiveIndex(indexPrefix, archiveSuffix string) string {
 	return indexPrefix + archiveSuffix
+}
+
+// compare two span, return true if they are the same
+func compareSpans(span1, span2 *model.Span) bool {
+	return span1.TraceID == span2.TraceID && span1.SpanID == span2.SpanID && span1.StartTime.Equal(span2.StartTime) && span1.Duration == span2.Duration
+}
+
+func containsSpan(spans []*model.Span, span *model.Span) bool {
+	for _, tmpSpan := range spans {
+		if compareSpans(tmpSpan, span) {
+			return true
+		}
+	}
+	return false
 }

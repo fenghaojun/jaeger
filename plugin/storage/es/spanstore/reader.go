@@ -35,8 +35,8 @@ import (
 )
 
 const (
-	spanIndex                      = "jaeger-span-"
-	serviceIndex                   = "jaeger-service-"
+	spanIndex                      = "log-jaeger-span-all-"
+	serviceIndex                   = "log-jaeger-service-all-"
 	archiveIndexSuffix             = "archive"
 	archiveReadIndexSuffix         = archiveIndexSuffix + "-read"
 	archiveWriteIndexSuffix        = archiveIndexSuffix + "-write"
@@ -199,9 +199,9 @@ func (s *SpanReader) GetTrace(ctx context.Context, traceID model.TraceID) (*mode
 }
 
 func (s *SpanReader) collectSpans(esSpansRaw []*elastic.SearchHit) ([]*model.Span, error) {
-	spans := make([]*model.Span, len(esSpansRaw))
-
-	for i, esSpanRaw := range esSpansRaw {
+	spans := make([]*model.Span, 0, len(esSpansRaw))
+	spansMap := make(map[model.SpanID][]*model.Span)
+	for _, esSpanRaw := range esSpansRaw {
 		jsonSpan, err := s.unmarshalJSONSpan(esSpanRaw)
 		if err != nil {
 			return nil, errors.Wrap(err, "Marshalling JSON to span object failed")
@@ -210,7 +210,16 @@ func (s *SpanReader) collectSpans(esSpansRaw []*elastic.SearchHit) ([]*model.Spa
 		if err != nil {
 			return nil, errors.Wrap(err, "Converting JSONSpan to domain Span failed")
 		}
-		spans[i] = span
+		if existedSpans, ok := spansMap[span.SpanID]; ok {
+			if containsSpan(existedSpans, span) {
+				continue
+			}
+			existedSpans = append(existedSpans, span)
+			spansMap[span.SpanID] = existedSpans
+		} else {
+			spansMap[span.SpanID] = []*model.Span{span}
+		}
+		spans = append(spans, span)
 	}
 	return spans, nil
 }

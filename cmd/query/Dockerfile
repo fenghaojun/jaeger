@@ -1,11 +1,10 @@
-FROM alpine:latest as certs
-RUN apk add --update --no-cache ca-certificates
+FROM harbor.shopeemobile.com/shopee/peg-compiler:latest
 
-FROM scratch
+WORKDIR /workspace
 
-COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+RUN mkdir -p /root/go/src/github.com/jaegertracing/jaeger/
 
-EXPOSE 16686
-COPY query-linux /go/bin/
+ADD . /root/go/src/github.com/jaegertracing/jaeger/
 
-ENTRYPOINT ["/go/bin/query-linux"]
+RUN cd /root/go/src/github.com/jaegertracing/jaeger/ && dep ensure -v -vendor-only && make build-query && mv cmd/query/query- /workspace/jaeger-query
+
